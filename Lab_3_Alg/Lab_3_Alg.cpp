@@ -2,17 +2,18 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
-
+// Макрос для округлення числа до найближчого цілого
 #define Round(x) ((x) < 0 ? (int)((x) - 0.5) : (int)((x) + 0.5))
+
 // Макрос для  який додає NULL в кінець списку аргументів
 #define printSpecificWordSafe( w, ...) printSpecificWord( w, __VA_ARGS__, NULL)
 #define printSpecificWordNostdargSafe( w, str, ...) printSpecificWord( w, str, __VA_ARGS__, NULL)
-#define printSpecificWordByNumgSafe(n, ...) printSpecificWordByNumg(n, __VA_ARGS__, 0)
+#define printSpecificWordByNumgSafe(n, ...) printSpecificWordByNumg(n, __VA_ARGS__, NULL)
 
+// Прототипи функцій
 char* getWordByIndex(const char*, int);// прототип функциї для отримання слова по індексу
 void printSpecificWord(int, ...);// прототип функциї для виведення слова з використанням stdarg
-void printSpecificWordWithType(const char*, ...);
+void printSpecificWordWithType(const char*, ...);// прототип функциї для виведення слова з використанням stdarg з типами
 void printSpecificWordNostdarg(int, const char*, ...);  // прототип функциї для виведення слова без використання stdarg, з використанням масиву аргументів
 void printSpecificWordByNumg(int, ...); // прототип функциї для виведення слова без використання stdarg, з використанням масиву аргументів, де індекс слова задається в числовому вигляді
 
@@ -22,15 +23,31 @@ int main()
 	char str2[] = "A? B; C. D, E F G";// тестовий рядок для функцій
 	char str3[] = "This is a test string for the function.";// ще один тестовий рядок
 	char str4[] = "Another example with more words to test the functionality.";// ще один тестовий рядок
+	long long ll = 1234567890123456789LL;// тестове число для функції з типами
+    printSpecificWordNostdargSafe(3, str1);
+    printSpecificWordSafe(4, "Hello world!", "This is a test.", "C programming is fun.");//тест 1
+    printSpecificWordSafe(2, "One two three", str1);//тест 2
+    printSpecificWordSafe(1, "First string", "Second string", "Third string", "Fourth string");//тест 3, перевірка на некоректне введення
+    printSpecificWordSafe(0, "First string", "Second string", "Third string", "Fourth string");//тест 4, перевірка на некоректне введення
+    printf("\n");
+    printSpecificWordSafe(1);//тест 5, перевірка на відсутність рядків
+    printSpecificWordSafe(1, str1, str2); //тест 6, перевірка на невід-повідність кількості рядків і переданих аргументів
+    printf("\n");
+    printSpecificWordNostdargSafe(4, str1, "This is a test.", "C programming is fun.");//тест 7, перевірка функції без використання stdarg
+    printSpecificWordNostdargSafe(3, str1);//тест 8, перевірка функції без використання stdarg на невідповідність кількості рядків і переданих ар-гументів
     printSpecificWordByNumgSafe(9, str3, 2, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами
 	printSpecificWordByNumgSafe(0, str3, 2, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
 	printSpecificWordByNumgSafe(8, str3, 2, str1, 5, str1, 6, str4, 4, str4, 5, str4 );// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
     printSpecificWordByNumgSafe(9, str4, 0, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
     printSpecificWordByNumgSafe(8, str4, 1, str1, 5, NULL, 5, str1);
     printf("\n");
-
+	printSpecificWordWithType("ids", 3, str1, 2.5, str2, str3);// виклик функції для виведення слова з використанням stdarg з типами
+	printSpecificWordWithType("ids", 10, str1, 2.5, str2, str3);// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
+    printSpecificWordWithType("idds", 10, str1, 2.7, str2, str3);
+	printSpecificWordWithType("ids", 10, str1, 2.0, NULL, str3);
+	printSpecificWordWithType("ids", 1, str1, 2.7, NULL, NULL);
+	printSpecificWordWithType("ids", -1, str1, -7.7, str2, str3);
 	printf("\n");
-
 }
 
 char* getWordByIndex(const char* str, int index)
@@ -86,17 +103,21 @@ void printSpecificWordWithType(const char* type, ...) {
     const char* pType = type;
     va_list args;
     va_start(args, type);
-
+	printf("Print specific word with type:\n");
     int i = 1;
     while (*pType != '\0') {
-        const char* str = NULL;
-        char* word = NULL;
+		const char* str = NULL;// Рядок для пошуку слова
+		char* word = NULL;// Індекс слова за замовчуванням
         int targetIndex = 1;
 
         switch (*pType) {
         case 'i': {
             // Читаємо індекс як int, потім рядок
             targetIndex = va_arg(args, int);
+            if(targetIndex < 1) {
+                printf("Invalid index %d, search first word\n", targetIndex);
+                targetIndex = 1;
+			}
             str = va_arg(args, const char*);
             break;
         }
@@ -104,6 +125,10 @@ void printSpecificWordWithType(const char* type, ...) {
             // Читаємо індекс як double, округлюємо, потім рядок
             double dWordNum = va_arg(args, double);
             targetIndex = Round(dWordNum);
+            if (targetIndex < 1) {
+                printf("Invalid index %d (rounded from %.2f), search first word\n", targetIndex, dWordNum);
+                targetIndex = 1;
+            }
             str = va_arg(args, const char*);
             break;
         }
@@ -180,21 +205,18 @@ void printSpecificWordByNumg(int firstWordNum, ...) {
     printf("Nostdarg mode, word:\n");
 
     while (slot != 0) {
-        if (slot > 0xFFFF) {
+		if (slot > 0xFFFF) {// Якщо слот більше 0xFFFF, вважаємо його рядком
             str = (const char*)slot;
-            // Перевірка на NULL (хоча slot > 0xFFFF вже відсікає 0)
             word = getWordByIndex(str, 1);
             printf("Pair %d (Index 1): %s\n", i++, word ? word : "No such word");
             if (word) free(word);
-
             slot = *pStack++; // Читаємо наступний слот
         }
         else {
-            wordNum = (int)slot;
-            nextSlot = *pStack++;
+			wordNum = (int)slot;// Якщо слот менше або рівний 0xFFFF, вважаємо його індексом
+			nextSlot = *pStack++;// Читаємо наступний слот, який має бути рядком
             if (nextSlot == 0) {
                 // Якщо це не останній елемент, просто пропускаємо цю пару
-                // Але як дізнатися, чи це кінець? 
                 // Якщо наступний за ним слот теж 0 — це точно кінець.
                 if (*(pStack + 1) == 0) break;
                 printf("Pair %d: Skip (String is NULL)\n", i++);
