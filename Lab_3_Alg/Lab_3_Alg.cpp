@@ -20,8 +20,14 @@ int main()
 {
 	char str1[] = "Hello world!";// тестовий рядок для функцій
 	char str2[] = "A? B; C. D, E F G";// тестовий рядок для функцій
-    printSpecificWordByNumgSafe(1, str1, 2, str2, str2, 5, str1);// виклик функції для виведення слова з використанням stdarg з типами
-	printf("\n");
+	char str3[] = "This is a test string for the function.";// ще один тестовий рядок
+	char str4[] = "Another example with more words to test the functionality.";// ще один тестовий рядок
+    printSpecificWordByNumgSafe(9, str3, 2, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами
+	printSpecificWordByNumgSafe(0, str3, 2, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
+	printSpecificWordByNumgSafe(8, str3, 2, str1, 5, str1, 6, str4, 4, str4, 5, str4 );// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
+    printSpecificWordByNumgSafe(9, str4, 0, str1, "str2", 5, str1);// виклик функції для виведення слова з використанням stdarg з типами з некоректним індексом
+    printSpecificWordByNumgSafe(8, str4, 1, str1, 5, NULL, 5, str1);
+    printf("\n");
 
 	printf("\n");
 
@@ -75,42 +81,65 @@ void printSpecificWord(int wordNum, ...) {
 }
 
 void printSpecificWordWithType(const char* type, ...) {
+    if (type == NULL) return;
+
     const char* pType = type;
-    
-	int iWordNum = 0;
-	double dWordNum = 0.0;
-    long long lWordNum = 0;
-    const char* str;
-    char* word;
     va_list args;
     va_start(args, type);
 
-
     int i = 1;
     while (*pType != '\0') {
-        switch (*pType)
-        {
-            case 'i': {
-				iWordNum = va_arg(args, int);
-                str = va_arg(args, const char*);
-				word = getWordByIndex(str, iWordNum);//функція для пошуку слова в реченні
-				printf("String %d (i): %s\n", i++, word ? word : "No such word", iWordNum);
-                break;
-			}
-            case 'd':
-				dWordNum = va_arg(args, double);
-				str = va_arg(args, const char*);
-                word = getWordByIndex(str, Round(dWordNum));//функція для пошуку слова в реченні
-				printf("String %d (d): %s\n", i++, word ? word : "No such word", Round(dWordNum));
-				break;
-            case 's': 
-				str = va_arg(args, const char*);
-				word = getWordByIndex(str, 1);//функція для пошуку слова в реченні
-				printf("String %d (s): %s\n", i++, word ? word : "No such word");
-				break;
-        default:
+        const char* str = NULL;
+        char* word = NULL;
+        int targetIndex = 1;
+
+        switch (*pType) {
+        case 'i': {
+            // Читаємо індекс як int, потім рядок
+            targetIndex = va_arg(args, int);
+            str = va_arg(args, const char*);
             break;
         }
+        case 'd': {
+            // Читаємо індекс як double, округлюємо, потім рядок
+            double dWordNum = va_arg(args, double);
+            targetIndex = Round(dWordNum);
+            str = va_arg(args, const char*);
+            break;
+        }
+        case 's': {
+            // Тільки рядок, індекс за замовчуванням 1
+            str = va_arg(args, const char*);
+            targetIndex = 1;
+            break;
+        }
+        default:
+            pType++; // Переходимо до наступного символу, якщо тип невідомий
+            continue;
+        }
+
+        if (str != NULL) {
+            // Спроба знайти слово за вказаним індексом
+            word = getWordByIndex(str, targetIndex);
+
+            // Якщо слова немає (NULL), шукаємо перше слово (індекс 1)
+            if (word == NULL) {
+                word = getWordByIndex(str, 1);
+                if (word) {
+                    printf("String %d (%c): Word %d not found, showing first: %s\n", i++, *pType, targetIndex, word);
+                }
+                else {
+                    printf("String %d (%c): Sentence is empty\n", i++, *pType);
+                }
+            }
+            else {
+                printf("String %d (%c): %s\n", i++, *pType, word);
+            }
+
+            if (word) free(word); // Звільняємо пам'ять після _strdup
+        }
+
+        pType++; // ВАЖЛИВО: перехід до наступного символу типу, щоб уникнути зависання
     }
     va_end(args);
 }
@@ -135,50 +164,50 @@ void printSpecificWordNostdarg(int wordNum, const char* firstStr, ...) {
 }
 
 void printSpecificWordByNumg(int firstWordNum, ...) {
+    if (firstWordNum == 0) {
+		printf("Invalid input: firstWordNum cannot be zero.\n");
+		return;
+    }
     int wordNum;
+    char* word;
+    const char* str;
     int* pStack = (int*)&firstWordNum;
-    int slot = *pStack; 
-    pStack++; 
+    int slot = *pStack;
+    int nextSlot;
+    pStack++;
     int i = 1;
 
     printf("Nostdarg mode, word:\n");
 
     while (slot != 0) {
         if (slot > 0xFFFF) {
-            const char* str = (const char*)slot;
-            if (str == NULL) break;
-            char* word = getWordByIndex(str, 1);
-            if (word) {
-                printf("Pair %d (Index %d): %s\n", i++, 1, word);
-                free(word);
-            }
-            else {
-                printf("Pair %d: No word at index %d\n", i++, 1);
-            }
-            slot = *pStack++;
+            str = (const char*)slot;
+            // Перевірка на NULL (хоча slot > 0xFFFF вже відсікає 0)
+            word = getWordByIndex(str, 1);
+            printf("Pair %d (Index 1): %s\n", i++, word ? word : "No such word");
+            if (word) free(word);
+
+            slot = *pStack++; // Читаємо наступний слот
         }
         else {
             wordNum = (int)slot;
-            if (wordNum == 0) {
-				printf("Terminator reached at pair %d\n", i);
-                break;
-            } 
-            int slot2 = *pStack++;
-            if (slot2 == 0) {
-                printf("Terminator reached at pair %d\n", i);
-                break;
-            } 
-            const char* str = (const char*)slot2;
-            if (str == NULL) continue;
-            char* word = getWordByIndex(str,wordNum);
-            if (word) {
-                printf("Pair %d (Index %d): %s\n", i++, wordNum);
-                free(word);
+            nextSlot = *pStack++;
+            if (nextSlot == 0) {
+                // Якщо це не останній елемент, просто пропускаємо цю пару
+                // Але як дізнатися, чи це кінець? 
+                // Якщо наступний за ним слот теж 0 — це точно кінець.
+                if (*(pStack + 1) == 0) break;
+                printf("Pair %d: Skip (String is NULL)\n", i++);
             }
             else {
-                printf("Pair %d: No word at index %d\n", i++, wordNum);
+                str = (const char*)nextSlot;
+                word = getWordByIndex(str, wordNum);
+                printf("Pair %d (Index %d): %s\n", i++, wordNum, word ? word : "No word");
+                if (word) free(word);
             }
-            slot = *pStack++;
+
+            slot = *pStack++; // Читаємо наступний слот для нової ітерації
         }
     }
+	printf("Functions come to 0(NULL) at the end of arguments list, stopping iteration.\n");
 }
